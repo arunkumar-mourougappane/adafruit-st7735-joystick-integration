@@ -22,57 +22,100 @@ typedef struct
 {
    Direction_e direction;
    std::atomic<bool> validity;
+   uint16_t joystickHexdata;
 } direction_t;
 
 // Macrodefs
-#define SAMPLING_RATE_ADC 200
-#define MAIN_THREAD_WRITE_WAIT 50
+#define SAMPLING_RATE_ADC 25
+#define MAIN_THREAD_WRITE_WAIT 2
 
-direction_t *joystickDirection;
+direction_t joystickDirection;
 Thread joystickReadThreadHandle;
-
+Adafruit_ST7735 tft(D11, D12, D13, D10, D8, D9); // MOSI, MISO, SCLK, SSEL, TFT_DC, TFT_RST
+// Use this initializer if you're using a 1.8" TFT
 void AnalogCallback()
 {
    AnalogIn joystick(A3);
-   uint16_t joystickData = 0;
+   Direction_e joystickData = Direction_e::NONE;
 
    while (true)
    {
-      if (joystickDirection->validity == false)
+      if (joystickDirection.validity == false)
       {
-         joystickData = joystick.read() * 1000;
-         if ((joystickData <= 190) && (joystick >= 150))
+
+         joystickDirection.joystickHexdata = joystick.read_u16();
+         if ((joystickDirection.joystickHexdata >= 0x2e20) &&
+             (joystickDirection.joystickHexdata <= 0x2e30))
          {
-            joystickDirection->direction = Direction_e::UP;
-            joystickDirection->validity = true;
+            joystickDirection.direction = Direction_e::UP;
+            joystickDirection.validity = true;
          }
-         else if ((joystickData <= 520) && (joystick >= 480))
+         else if ((joystickDirection.joystickHexdata >= 0x0570) &&
+                  (joystickDirection.joystickHexdata <= 0x0590))
          {
-            joystickDirection->direction = Direction_e::LEFT;
-            joystickDirection->validity = true;
+            joystickDirection.direction = Direction_e::RIGHT;
+            joystickDirection.validity = true;
          }
-         else if ((joystickData <= 920) && (joystick >= 880))
+         else if ((joystickDirection.joystickHexdata >= 0xe900) &&
+                  (joystickDirection.joystickHexdata <= 0xe940))
          {
-            joystickDirection->direction = Direction_e::DOWN;
-            joystickDirection->validity = true;
+            joystickDirection.direction = Direction_e::DOWN;
+            joystickDirection.validity = true;
          }
-         else if ((joystickData <= 30) && (joystick >= 10))
+         else if ((joystickDirection.joystickHexdata >= 0x8020) &&
+                  (joystickDirection.joystickHexdata <= 0x8050))
          {
-            joystickDirection->direction = Direction_e::RIGHT;
-            joystickDirection->validity = true;
+            joystickDirection.direction = Direction_e::LEFT;
+            joystickDirection.validity = true;
          }
-         else if ((joystickData <= 330) && (joystick >= 290))
+         else if ((joystickDirection.joystickHexdata >= 0x5200) &&
+                  (joystickDirection.joystickHexdata <= 0x5250))
          {
-            joystickDirection->direction = Direction_e::PRESS;
-            joystickDirection->validity = true;
+            joystickDirection.direction = Direction_e::PRESS;
+            joystickDirection.validity = true;
          }
-         thread_sleep_for(SAMPLING_RATE_ADC / 4);
+         else
+         {
+            joystickDirection.direction = Direction_e::NONE;
+            joystickDirection.validity = true;
+         }
       }
-      else
-      {
-         thread_sleep_for(SAMPLING_RATE_ADC);
-      }
+      thread_sleep_for(SAMPLING_RATE_ADC);
    }
+}
+
+void drawDirection(Direction_e currentDirection, bool eraseShape)
+{
+   switch (currentDirection)
+   {
+   case Direction_e::UP:
+      tft.fillTriangle(60, 88, 80, 44, 100, 88, eraseShape ? ST7735_BLACK : ST7735_GREEN);
+      break;
+   case Direction_e::RIGHT:
+      tft.fillTriangle(60, 44, 60, 88, 100, 66, eraseShape ? ST7735_BLACK : ST7735_GREEN);
+      break;
+   case Direction_e::DOWN:
+      tft.fillTriangle(60, 44, 80, 88, 100, 44, eraseShape ? ST7735_BLACK : ST7735_GREEN);
+      break;
+   case Direction_e::LEFT:
+      tft.fillTriangle(100, 44, 100, 88, 60, 66, eraseShape ? ST7735_BLACK : ST7735_GREEN);
+      break;
+   case Direction_e::PRESS:
+      tft.fillCircle(80, 64, 20, eraseShape ? ST7735_BLACK : ST7735_GREEN);
+      break;
+   case Direction_e::NONE:
+   default:
+      break;
+   }
+}
+
+void redrawDirection(Direction_e currentDirection, Direction_e oldDirection)
+{
+   if (currentDirection != oldDirection)
+   {
+      drawDirection(oldDirection, true);
+   }
+   drawDirection(currentDirection, false);
 }
 
 void StartJoystickThread()
@@ -82,59 +125,73 @@ void StartJoystickThread()
 
 int main()
 {
-   Adafruit_ST7735 tft(D11, D12, D13, D10, D8, D9); // MOSI, MISO, SCLK, SSEL, TFT_DC, TFT_RST
-   // Use this initializer if you're using a 1.8" TFT
    tft.initR(INITR_BLACKTAB); // initialize a ST7735S chip, black tab
-
    std::string directonText;
-   Direction_e old_joystick_value = Direction_e::NONE;
+   Direction_e oldDirection = Direction_e::NONE;
    tft.setCursor(0, 0);
    tft.setRotation(1);
    tft.fillScreen(ST7735_BLACK);
    tft.setTextColor(ST7735_RED);
+   tft.printf("TFT Initialized...done");
+   tft.setCursor(0, 16);
    tft.setTextWrap(true);
-   tft.printf("Starting Joystick thread..");
-   //direction_t *joystickDirection;
+   tft.printf("Starting Joystick thread...");
    StartJoystickThread();
-   thread_sleep_for(1000);
+   thread_sleep_for(500);
+   tft.setCursor(0, 24);
+   tft.printf("done");
+   tft.setCursor(0, 32);
+   tft.printf("Initializing");
+   thread_sleep_for(250);
+   tft.printf(".");
+   thread_sleep_for(250);
+   tft.printf(".");
+   thread_sleep_for(250);
+   tft.printf(".done");
+   thread_sleep_for(250);
    tft.fillScreen(ST7735_BLACK);
-   tft.setCursor(0, 0);
-   tft.printf("Initialized");
-   thread_sleep_for(1000);
-   tft.fillScreen(ST7735_BLACK);
-   tft.setTextColor(ST7735_RED);
+   tft.setTextColor(ST7735_WHITE);
    while (true)
    {
-      tft.setCursor(0, 0);
-      if (joystickDirection->validity == true)
+      tft.setRotation(1);
+      tft.setCursor(20 + (ST7735_TFTWIDTH / 4), 0);
+      if (joystickDirection.validity == true)
       {
-         tft.fillRect(0, 0, ST7735_TFTWIDTH, 8, ST7735_BLACK);
-         if (joystickDirection->direction != old_joystick_value)
+         if (Direction_e::NONE == joystickDirection.direction)
          {
-            old_joystick_value = joystickDirection->direction;
-            switch (joystickDirection->direction)
-            {
-            case Direction_e::UP:
-               tft.printf("UP");
-               break;
-            case Direction_e::LEFT:
-               tft.printf("LEFT");
-               break;
-            case Direction_e::DOWN:
-               tft.printf("DOWN");
-               break;
-            case Direction_e::RIGHT:
-               tft.printf("RIGHT");
-               break;
-            case Direction_e::PRESS:
-               tft.printf("PRESS");
-               break;
-            case Direction_e::NONE:
-               break;
-            }
+            drawDirection(oldDirection, true);
+            tft.fillRect(20 + (ST7735_TFTWIDTH / 4), 0, ST7735_TFTWIDTH, 8, ST7735_BLACK);
          }
-         joystickDirection->validity = false;
+
+         switch (joystickDirection.direction)
+         {
+         case Direction_e::UP:
+            tft.printf("   UP");
+            break;
+         case Direction_e::LEFT:
+            tft.printf(" LEFT");
+            break;
+         case Direction_e::DOWN:
+            tft.printf(" DOWN");
+            break;
+         case Direction_e::RIGHT:
+            tft.printf("RIGHT");
+            break;
+         case Direction_e::PRESS:
+            tft.printf("PRESS");
+            break;
+         case Direction_e::NONE:
+            break;
+         }
+         redrawDirection(joystickDirection.direction, oldDirection);
+
+         if (Direction_e::NONE != joystickDirection.direction)
+         {
+            oldDirection = joystickDirection.direction;
+         }
+         joystickDirection.validity = false;
       }
+
       thread_sleep_for(MAIN_THREAD_WRITE_WAIT);
    }
 }
