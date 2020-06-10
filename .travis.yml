@@ -1,5 +1,11 @@
 notifications:
-  email: false
+  slack:
+    rooms:
+	  - rclpeoria:UEZJQZ8PcDxN13OaMtBnZMvf#general
+	  - rclpeoria:UEZJQZ8PcDxN13OaMtBnZMvf#random
+  email:
+    - amouroug@buddalo.edu
+    - arun.mylegend1990@gmail.com
 
 sudo: false
 
