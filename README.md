@@ -1,4 +1,4 @@
-# Comprehensive Rover Bot [![Build Status](https://travis-ci.com/arunkumar-mourougappane/comprehensive-rover-controller.svg?branch=master)](https://travis-ci.com/arunkumar-mourougappane/comprehensive-rover-controller)
+# Adafruit ST7735 - Analog toggle 5-way switch Driver [![Build Status](https://travis-ci.com/arunkumar-mourougappane/comprehensive-rover-controller.svg?branch=master)](https://travis-ci.com/arunkumar-mourougappane/comprehensive-rover-controller)
 
 A complete build of components for rover using only STM32F303RE as controller and FRDMK64 as Driver for motor. Both of which interact using nRF24L01+ 2.4 GHz Transceiver Module for exchange of control data and sensor information.
 
