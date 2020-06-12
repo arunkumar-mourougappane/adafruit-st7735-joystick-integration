@@ -1,8 +1,4 @@
 notifications:
-  slack:
-    rooms:
-      - rclpeoria:UEZJQZ8PcDxN13OaMtBnZMvf#general
-      - rclpeoria:UEZJQZ8PcDxN13OaMtBnZMvf#random
   email:
     recipients:  
       - amouroug@buffalo.edu
